@@ -185,7 +185,7 @@ const DataTable: React.FC<DataTableProps> = ({
         dot: "bg-yellow-500",
         icon: Clock,
         priority: 2,
-        description: "Awaiting response",
+        description: "Awaiting Response",
         action: "Follow up",
       },
       "waiting for payment": {
@@ -194,7 +194,7 @@ const DataTable: React.FC<DataTableProps> = ({
         dot: "bg-orange-500",
         icon: CreditCard,
         priority: 3,
-        description: "Waiting for payment",
+        description: "Waiting For Payment",
         action: "Send invoice",
       },
       confirmed: {
@@ -203,7 +203,7 @@ const DataTable: React.FC<DataTableProps> = ({
         dot: "bg-green-500",
         icon: CheckCircle,
         priority: 4,
-        description: "Trip confirmed",
+        description: "Trip Confirmed",
         action: "View details",
       },
       cancelled: {
