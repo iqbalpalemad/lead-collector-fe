@@ -176,7 +176,7 @@ const DataTable: React.FC<DataTableProps> = ({
         dot: "bg-blue-500",
         icon: Star,
         priority: 1,
-        description: "New inquiry",
+        description: "New Enquiry",
         action: "Lead",
       },
       pending: {
