@@ -12,6 +12,7 @@ import Dropdown from "./Dropdown";
 import { apiFunctions } from "../services/api";
 import Toast from "./Toast";
 import type { Contact } from "../types";
+import { COUNTRY_LIST } from "../utils/countryList";
 
 interface ContactFormProps {
   contact: Contact | null;
@@ -33,6 +34,7 @@ const ContactForm: React.FC<ContactFormProps> = ({
   const [formData, setFormData] = useState<Contact>({
     _id: "",
     name: "",
+    countryCode: "",
     phone: "",
     status: "new",
     note: "",
@@ -48,21 +50,22 @@ const ContactForm: React.FC<ContactFormProps> = ({
     isVisible: false,
   });
 
-  // Update form data when lead prop changes
+  // Update form data and country code when lead prop changes
   useEffect(() => {
     if (contact) {
       setFormData({
         _id: contact._id || "",
         name: contact.name || "",
+        countryCode: contact.countryCode || "",
         phone: contact.phone || "",
         status: contact.status || "new",
         note: contact.note || "",
       });
     } else {
-      // Reset form for new lead with default status
       setFormData({
         _id: "",
         name: "",
+        countryCode: COUNTRY_LIST[0].value,
         phone: "",
         status: "new",
         note: "",
@@ -70,38 +73,35 @@ const ContactForm: React.FC<ContactFormProps> = ({
     }
   }, [contact]);
 
-  // Prevent body scrolling when modal is open
+  // Prevent body scrolling when modal is open using CSS approach
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden";
+      // Add a class to body that prevents scrolling
+      document.body.classList.add("modal-open");
     } else {
-      document.body.style.overflow = "unset";
+      // Remove the class when modal closes
+      document.body.classList.remove("modal-open");
     }
 
-    // Cleanup function to restore scrolling when component unmounts
+    // Cleanup function to remove class when component unmounts
     return () => {
-      document.body.style.overflow = "unset";
+      document.body.classList.remove("modal-open");
     };
   }, [isOpen]);
 
   const handleInputChange = (field: keyof Contact, value: string) => {
-    // Don't allow changes if trip is expired
     if (isTripExpired) return;
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
-    // Special handling for phone number validation
-    if (field === "phone") {
-      // Only allow numeric characters and limit to 10 digits
-      const numericValue = value.replace(/\D/g, "").slice(0, 10);
-      setFormData((prev) => ({
-        ...prev,
-        [field]: numericValue,
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
-    }
+  const handleCountryChange = (value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      countryCode: value,
+    }));
   };
 
   const showToast = (
@@ -121,62 +121,54 @@ const ContactForm: React.FC<ContactFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Don't allow submission if trip is expired
     if (isTripExpired) {
       showToast("Cannot modify leads for expired trips", "error");
       return;
     }
-
     if (!selectedTrip) {
       showToast("Please select a trip first", "error");
       return;
     }
-
-    // Validate phone number format
-    if (formData.phone.length !== 10) {
-      showToast("Phone number must be exactly 10 digits", "error");
+    if (!formData.phone.trim()) {
+      showToast("Phone number is required", "error");
       return;
     }
-
     setIsLoading(true);
     try {
       if (contact) {
-        // Editing existing lead
         const response = await apiFunctions.updateLead({
           id: contact._id,
           name: formData.name,
-          phone: formData.phone,
+          countryCode: formData.countryCode!,
+          phone: formData.phone.trim(),
           note: formData.note || "",
           status: formData.status,
         });
-
-        // Update the lead with the response data
         const updatedContact: Contact = {
           _id: response.data._id || contact._id,
           name: response.data.name,
+          countryCode: response.data.countryCode,
           phone: response.data.phone,
           status: response.data.status || formData.status,
           assignedTo: response.data.assignedTo,
           note: response.data.note,
         };
-
         onSave(updatedContact);
         showToast("Lead updated successfully!", "success");
         onClose();
       } else {
-        // Adding new lead
         const response = await apiFunctions.createLead({
           name: formData.name,
-          phone: formData.phone,
+          countryCode: formData.countryCode!,
+          phone: formData.phone.trim(),
           camp: selectedTrip,
           note: formData.note || "",
         });
 
-        // Create the new lead with the response data
         const newContact: Contact = {
           _id: response.data._id,
           name: response.data.name,
+          countryCode: response.data.countryCode,
           phone: response.data.phone,
           status: response.data.status || "new",
           assignedTo: response.data.assignedTo,
@@ -267,15 +259,14 @@ const ContactForm: React.FC<ContactFormProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 <User className="h-4 w-4 inline mr-2 text-gray-400 dark:text-gray-500" />
-                Full Name
+                Name
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 className="w-full px-4 h-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-base bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 disabled:bg-gray-100 dark:disabled:bg-gray-800 [&:disabled]:!text-gray-900 dark:[&:disabled]:!text-gray-100"
-                placeholder="Enter full name"
-                required
+                placeholder="Enter name"
                 disabled={isLoading || isTripExpired}
               />
             </div>
@@ -286,23 +277,29 @@ const ContactForm: React.FC<ContactFormProps> = ({
                 <Phone className="h-4 w-4 inline mr-2 text-gray-400 dark:text-gray-500" />
                 Phone Number
               </label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => handleInputChange("phone", e.target.value)}
-                className="w-full px-4 h-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-base bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 disabled:bg-gray-100 dark:disabled:bg-gray-800 [&:disabled]:!text-gray-900 dark:[&:disabled]:!text-gray-100"
-                placeholder="Enter 10-digit phone number"
-                pattern="[0-9]{10}"
-                inputMode="numeric"
-                maxLength={10}
-                required
-                disabled={isLoading || isTripExpired}
-              />
-              {formData.phone.length > 0 && formData.phone.length < 10 && (
-                <p className="text-xs text-red-500 mt-1">
-                  Phone number must be exactly 10 digits
-                </p>
-              )}
+              <div className="flex gap-2">
+                <Dropdown
+                  options={COUNTRY_LIST}
+                  value={formData.countryCode}
+                  onChange={handleCountryChange}
+                  disabled={isLoading || isTripExpired}
+                  className="w-36"
+                  placeholder="Country code"
+                  searchable={true}
+                />
+                <input
+                  type="text"
+                  value={formData.phone}
+                  onChange={(e) => {
+                    // Only allow numeric characters
+                    const numericValue = e.target.value.replace(/[^0-9]/g, "");
+                    handleInputChange("phone", numericValue);
+                  }}
+                  className="flex-1 px-4 h-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-base bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 disabled:bg-gray-100 dark:disabled:bg-gray-800 [&:disabled]:!text-gray-900 dark:[&:disabled]:!text-gray-100"
+                  placeholder="Enter phone number"
+                  disabled={isLoading || isTripExpired}
+                />
+              </div>
             </div>
 
             {/* Status Field - Only show when editing existing lead */}

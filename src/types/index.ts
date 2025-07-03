@@ -1,6 +1,7 @@
 export interface Contact {
   _id: string;
-  name: string;
+  name?: string;
+  countryCode?: string;
   phone: string;
   status: string;
   assignedTo?: {
@@ -18,7 +19,7 @@ export interface Camp {
 
 export interface Lead {
   _id: string;
-  name: string;
+  name?: string;
   phone: string;
   status?: string;
   assignedTo?: {

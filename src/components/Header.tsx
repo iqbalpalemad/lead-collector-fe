@@ -67,7 +67,7 @@ const Header: React.FC<HeaderProps> = ({ onLogout, username }) => {
             >
               <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center">
                 <img
-                  src={generateAvatarFromUsername(username)}
+                  src={generateAvatarFromUsername(username, undefined, theme)}
                   alt={`${username}'s avatar`}
                   className="w-full h-full object-cover"
                   onError={(e) => {

@@ -28,6 +28,15 @@ body {
   @apply bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200;
 }
 
+/* Modal open styles - prevents body scrolling while preserving position */
+body.modal-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  left: 0;
+}
+
 #root {
   height: 100%;
   display: flex;

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { Search } from "lucide-react";
 
 interface DropdownOption {
   value: string;
@@ -15,6 +16,7 @@ interface DropdownProps {
   className?: string;
   error?: string;
   label?: string;
+  searchable?: boolean;
 }
 
 const Dropdown: React.FC<DropdownProps> = ({
@@ -26,14 +28,27 @@ const Dropdown: React.FC<DropdownProps> = ({
   className = "",
   error,
   label,
+  searchable = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [searchTerm, setSearchTerm] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const selectedOption = options.find((option) => option.value === value);
 
-  const filteredOptions = options.filter((option) => !option.disabled);
+  // Filter options based on search term and disabled status
+  const filteredOptions = options.filter((option) => {
+    if (option.disabled) return false;
+    if (!searchable || !searchTerm) return true;
+
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      option.label.toLowerCase().includes(searchLower) ||
+      option.value.toLowerCase().includes(searchLower)
+    );
+  });
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -43,12 +58,22 @@ const Dropdown: React.FC<DropdownProps> = ({
       ) {
         setIsOpen(false);
         setHighlightedIndex(-1);
+        setSearchTerm("");
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (isOpen && searchable && searchInputRef.current) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+    }
+  }, [isOpen, searchable]);
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (!isOpen) {
@@ -82,6 +107,7 @@ const Dropdown: React.FC<DropdownProps> = ({
         event.preventDefault();
         setIsOpen(false);
         setHighlightedIndex(-1);
+        setSearchTerm("");
         break;
     }
   };
@@ -90,6 +116,7 @@ const Dropdown: React.FC<DropdownProps> = ({
     onChange(option.value);
     setIsOpen(false);
     setHighlightedIndex(-1);
+    setSearchTerm("");
   };
 
   const toggleDropdown = () => {
@@ -97,8 +124,14 @@ const Dropdown: React.FC<DropdownProps> = ({
       setIsOpen(!isOpen);
       if (!isOpen) {
         setHighlightedIndex(-1);
+        setSearchTerm("");
       }
     }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setHighlightedIndex(-1);
   };
 
   return (
@@ -162,36 +195,61 @@ const Dropdown: React.FC<DropdownProps> = ({
         </div>
 
         {isOpen && (
-          <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
-            {filteredOptions.length > 0 ? (
-              <ul role="listbox" className="py-1">
-                {filteredOptions.map((option, index) => (
-                  <li
-                    key={option.value}
-                    className={`
-                      px-3 py-2 text-sm cursor-pointer select-none
-                      ${
-                        index === highlightedIndex
-                          ? "bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100"
-                          : "text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      }
-                      ${option.disabled ? "opacity-50 cursor-not-allowed" : ""}
-                    `}
-                    onClick={() =>
-                      !option.disabled && handleOptionSelect(option)
-                    }
-                    role="option"
-                    aria-selected={option.value === value}
-                  >
-                    {option.label}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                No options available
+          <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-hidden">
+            {/* Search Input */}
+            {searchable && (
+              <div className="px-2 pt-2 pb-1 bg-transparent">
+                <div className="relative">
+                  <Search className="absolute left-1 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400 dark:text-gray-400" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    placeholder="Search..."
+                    className="w-full pl-6 pr-2 py-1.5 rounded-md text-sm border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm transition-all"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
               </div>
             )}
+
+            {/* Options List */}
+            <div className="max-h-48 overflow-auto">
+              {filteredOptions.length > 0 ? (
+                <ul role="listbox" className="py-1">
+                  {filteredOptions.map((option, index) => (
+                    <li
+                      key={option.value}
+                      className={`
+                        px-3 py-2 text-sm cursor-pointer select-none
+                        ${
+                          index === highlightedIndex
+                            ? "bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100"
+                            : "text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        }
+                        ${
+                          option.disabled ? "opacity-50 cursor-not-allowed" : ""
+                        }
+                      `}
+                      onClick={() =>
+                        !option.disabled && handleOptionSelect(option)
+                      }
+                      role="option"
+                      aria-selected={option.value === value}
+                    >
+                      {option.label}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                  {searchTerm
+                    ? "No matching options found"
+                    : "No options available"}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

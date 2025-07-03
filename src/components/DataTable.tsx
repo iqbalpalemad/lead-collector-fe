@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import whatsappIcon from "../assets/whatsapp-icon.svg";
 import type { Contact } from "../types";
+import { AvatarStyle, generateAvatarFromUsername } from "../utils/avatarUtils";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface DataTableProps {
   data: Contact[];
@@ -41,6 +43,7 @@ const DataTable: React.FC<DataTableProps> = ({
   onContactClick,
   isTripExpired = false,
 }) => {
+  const { theme } = useTheme();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<
@@ -58,6 +61,23 @@ const DataTable: React.FC<DataTableProps> = ({
   // Available items per page options
   const itemsPerPageOptions = [5, 10, 20, 50, 100];
 
+  // Helper functions for handling missing names and avatars
+  const getDisplayName = (
+    contact: Contact
+  ): { text: string; isUnnamed: boolean } => {
+    if (contact.name && contact.name.trim()) {
+      return { text: contact.name, isUnnamed: false };
+    }
+    return { text: "Unnamed Lead", isUnnamed: true };
+  };
+
+  const getAvatarUrl = (contact: Contact): string => {
+    // Use name if available, otherwise use phone number as seed
+    const seed =
+      contact.name && contact.name.trim() ? contact.name : contact.phone;
+    return generateAvatarFromUsername(seed, AvatarStyle.PERSONAS, theme);
+  };
+
   // Filter and sort data
   const filteredAndSortedData = useMemo(() => {
     let filtered = data;
@@ -66,7 +86,9 @@ const DataTable: React.FC<DataTableProps> = ({
     if (searchTerm) {
       filtered = data.filter(
         (contact) =>
-          contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          getDisplayName(contact)
+            .text.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
           contact.phone.includes(searchTerm) ||
           (contact.assignedTo &&
             contact.assignedTo.username
@@ -100,6 +122,9 @@ const DataTable: React.FC<DataTableProps> = ({
       if (sortField === "assignedTo") {
         aValue = (a.assignedTo?.username || "").toLowerCase();
         bValue = (b.assignedTo?.username || "").toLowerCase();
+      } else if (sortField === "name") {
+        aValue = getDisplayName(a).text.toLowerCase();
+        bValue = getDisplayName(b).text.toLowerCase();
       } else {
         aValue = a[sortField].toLowerCase();
         bValue = b[sortField].toLowerCase();
@@ -176,7 +201,7 @@ const DataTable: React.FC<DataTableProps> = ({
         dot: "bg-blue-500",
         icon: Star,
         priority: 1,
-        description: "New Enquiry",
+        description: "New inquiry",
         action: "Lead",
       },
       pending: {
@@ -185,7 +210,7 @@ const DataTable: React.FC<DataTableProps> = ({
         dot: "bg-yellow-500",
         icon: Clock,
         priority: 2,
-        description: "Awaiting Response",
+        description: "Awaiting response",
         action: "Follow up",
       },
       "waiting for payment": {
@@ -194,7 +219,7 @@ const DataTable: React.FC<DataTableProps> = ({
         dot: "bg-orange-500",
         icon: CreditCard,
         priority: 3,
-        description: "Waiting For Payment",
+        description: "Waiting for payment",
         action: "Send invoice",
       },
       confirmed: {
@@ -203,7 +228,7 @@ const DataTable: React.FC<DataTableProps> = ({
         dot: "bg-green-500",
         icon: CheckCircle,
         priority: 4,
-        description: "Trip Confirmed",
+        description: "Trip confirmed",
         action: "View details",
       },
       cancelled: {
@@ -290,18 +315,26 @@ const DataTable: React.FC<DataTableProps> = ({
       >
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center flex-1 min-w-0">
-            <div className="h-10 w-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-              <span className="text-sm font-medium text-blue-600 dark:text-blue-300">
-                {contact.name.charAt(0).toUpperCase()}
-              </span>
-            </div>
+            <img
+              src={getAvatarUrl(contact)}
+              alt={`Avatar for ${getDisplayName(contact).text}`}
+              className="h-10 w-10 rounded-full mr-3 flex-shrink-0"
+            />
             <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate mb-1">
-                {contact.name}
+              <h3
+                className={`font-medium truncate mb-1 ${
+                  getDisplayName(contact).isUnnamed
+                    ? "text-gray-400 dark:text-gray-500 italic"
+                    : "text-gray-900 dark:text-gray-100"
+                }`}
+              >
+                {getDisplayName(contact).text}
               </h3>
               <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                 <Phone className="w-3 h-3 mr-1 flex-shrink-0" />
-                <span className="truncate">{contact.phone}</span>
+                <span className="truncate">
+                  {contact.countryCode} {contact.phone}
+                </span>
               </div>
               {contact.assignedTo && (
                 <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -327,7 +360,7 @@ const DataTable: React.FC<DataTableProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={(e) => handleCall(contact.phone, e)}
+              onClick={(e) => handleCall(contact, e)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-md transition-colors duration-200 font-medium text-xs border border-blue-200 dark:border-blue-700"
               title="Call lead"
             >
@@ -335,7 +368,7 @@ const DataTable: React.FC<DataTableProps> = ({
               Call
             </button>
             <button
-              onClick={(e) => handleWhatsApp(contact.phone, e)}
+              onClick={(e) => handleWhatsApp(contact, e)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 text-green-700 dark:text-green-300 rounded-md transition-colors duration-200 font-medium text-xs border border-green-200 dark:border-green-700"
               title="WhatsApp lead"
             >
@@ -433,30 +466,27 @@ const DataTable: React.FC<DataTableProps> = ({
     touchEndX.current = 0;
   };
 
-  const handleCall = (phone: string, e: React.MouseEvent) => {
+  const handleCall = (contact: Contact, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the row click
-    const cleanedPhone = phone.replace(/\D/g, "");
+    const fullPhone = `${contact.countryCode} ${contact.phone}`;
+    const cleanedPhone = fullPhone.replace(/\D/g, "");
     window.location.href = `tel:${cleanedPhone}`;
   };
 
-  const handleWhatsApp = (phone: string, e: React.MouseEvent) => {
+  const handleWhatsApp = (contact: Contact, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the row click
-    const cleanedPhone = phone.replace(/\D/g, "");
-
-    // Add +91 country code if not already present
-    const phoneWithCountryCode = cleanedPhone.startsWith("91")
-      ? `+${cleanedPhone}`
-      : `+91${cleanedPhone}`;
+    const fullPhone = `${contact.countryCode} ${contact.phone}`;
+    const cleanedPhone = fullPhone.replace(/\D/g, "");
 
     // Use WhatsApp app link that works on mobile devices
-    const whatsappUrl = `whatsapp://send?phone=${phoneWithCountryCode}`;
+    const whatsappUrl = `whatsapp://send?phone=${cleanedPhone}`;
 
     // Try to open WhatsApp app, fallback to web if needed
     try {
       window.location.href = whatsappUrl;
     } catch {
       // Fallback to web version if app is not available
-      window.open(`https://wa.me/${phoneWithCountryCode}`, "_blank");
+      window.open(`https://wa.me/${cleanedPhone}`, "_blank");
     }
   };
 
@@ -660,13 +690,19 @@ const DataTable: React.FC<DataTableProps> = ({
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center">
-                        <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mr-3 group-hover:bg-blue-200 dark:group-hover:bg-blue-800 transition-colors duration-150">
-                          <span className="text-sm font-medium text-blue-600 dark:text-blue-300">
-                            {contact.name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {contact.name}
+                        <img
+                          src={getAvatarUrl(contact)}
+                          alt={`Avatar for ${getDisplayName(contact).text}`}
+                          className="h-8 w-8 rounded-full mr-3 group-hover:ring-2 group-hover:ring-blue-200 dark:group-hover:ring-blue-800 transition-all duration-150"
+                        />
+                        <span
+                          className={`text-sm font-medium ${
+                            getDisplayName(contact).isUnnamed
+                              ? "text-gray-400 dark:text-gray-500 italic"
+                              : "text-gray-900 dark:text-gray-100"
+                          }`}
+                        >
+                          {getDisplayName(contact).text}
                         </span>
                       </div>
                     </td>
@@ -674,7 +710,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       <div className="flex items-center">
                         <Phone className="h-4 w-4 text-gray-400 dark:text-gray-500 mr-2" />
                         <span className="text-sm text-gray-600 dark:text-gray-300 font-mono">
-                          {contact.phone}
+                          {contact.countryCode} {contact.phone}
                         </span>
                       </div>
                     </td>
@@ -705,7 +741,7 @@ const DataTable: React.FC<DataTableProps> = ({
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={(e) => handleCall(contact.phone, e)}
+                          onClick={(e) => handleCall(contact, e)}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-md transition-colors duration-200 font-medium text-xs border border-blue-200 dark:border-blue-700"
                           title="Call lead"
                         >
@@ -713,7 +749,7 @@ const DataTable: React.FC<DataTableProps> = ({
                           Call
                         </button>
                         <button
-                          onClick={(e) => handleWhatsApp(contact.phone, e)}
+                          onClick={(e) => handleWhatsApp(contact, e)}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 text-green-700 dark:text-green-300 rounded-md transition-colors duration-200 font-medium text-xs border border-green-200 dark:border-green-700"
                           title="WhatsApp lead"
                         >
@@ -778,7 +814,7 @@ const DataTable: React.FC<DataTableProps> = ({
               <button
                 onClick={() => handlePageChange(1)}
                 disabled={currentPage === 1}
-                className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-all duration-150"
+                className="p-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-all duration-150"
                 title="First page"
               >
                 <ChevronsLeft className="h-4 w-4" />
@@ -788,7 +824,7 @@ const DataTable: React.FC<DataTableProps> = ({
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-all duration-150"
+                className="p-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-all duration-150"
                 title="Previous page"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -814,7 +850,7 @@ const DataTable: React.FC<DataTableProps> = ({
                       onClick={() => handlePageChange(pageNum)}
                       className={`px-3 py-2 text-sm rounded-md min-w-[40px] font-medium transition-all duration-150 ${
                         currentPage === pageNum
-                          ? "bg-blue-600 text-white shadow-md"
+                          ? "bg-black dark:bg-white text-white dark:text-black shadow-md"
                           : "text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100"
                       }`}
                     >
@@ -828,7 +864,7 @@ const DataTable: React.FC<DataTableProps> = ({
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-all duration-150"
+                className="p-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-all duration-150"
                 title="Next page"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -838,7 +874,7 @@ const DataTable: React.FC<DataTableProps> = ({
               <button
                 onClick={() => handlePageChange(totalPages)}
                 disabled={currentPage === totalPages}
-                className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-all duration-150"
+                className="p-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-all duration-150"
                 title="Last page"
               >
                 <ChevronsRight className="h-4 w-4" />

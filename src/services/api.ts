@@ -78,16 +78,24 @@ export const apiFunctions = {
   // Create a new lead
   createLead: async ({
     name,
+    countryCode,
     phone,
     camp,
     note,
   }: {
-    name: string;
+    name?: string;
+    countryCode: string;
     phone: string;
     camp: string;
     note: string;
   }) => {
-    const response = await api.post(`/api/lead`, { name, phone, note, camp });
+    const response = await api.post(`/api/lead`, {
+      name,
+      countryCode,
+      phone,
+      note,
+      camp,
+    });
     return response.data;
   },
 
@@ -95,18 +103,21 @@ export const apiFunctions = {
   updateLead: async ({
     id,
     name,
+    countryCode,
     phone,
     note,
     status,
   }: {
     id: string;
-    name: string;
+    name?: string;
+    countryCode: string;
     phone: string;
     note: string;
     status: string;
   }) => {
     const response = await api.put(`/api/lead/${id}`, {
       name,
+      countryCode,
       phone,
       note,
       status,
